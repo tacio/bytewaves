@@ -2,6 +2,24 @@
 
 ByteWaves is a Python-based acoustic modem that encodes and decodes data into sound waves using a multi-frequency shift keying (MFSK) technique. It leverages Reed-Solomon error correction to ensure data integrity even in noisy environments. This project provides a simple yet effective way to transmit data between devices using only a speaker and a microphone.
 
+## Installation
+
+You can install ByteWaves directly from PyPI using pip:
+
+```sh
+pip install bytewaves
+```
+
+## Usage
+
+Once installed, you can run the modem from your terminal:
+
+```sh
+bytewaves
+```
+
+This will launch the interactive command-line interface, where you can choose to send or receive data.
+
 ## Roadmap
 
 This roadmap outlines the future direction of the ByteWaves project, focusing on key areas of improvement to enhance its functionality, robustness, and user experience.

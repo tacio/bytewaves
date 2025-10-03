@@ -1,11 +1,18 @@
 [project]
 name = "bytewaves"
 version = "0.1.0"
-description = "Add your description here"
+description = "An acoustic modem for transmitting data using sound waves, with Reed-Solomon error correction."
+authors = [
+    { name = "Jules", email = "jules@example.com" }
+]
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.8"
 dependencies = [
     "numpy>=2.3.3",
     "reedsolo>=1.7.0",
     "sounddevice>=0.5.2",
+    "padasip>=1.2.1",
 ]
+
+[project.scripts]
+bytewaves = "bytewaves.modem:main"
