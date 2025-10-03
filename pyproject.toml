@@ -6,11 +6,12 @@ authors = [
     { name = "Jules", email = "jules@example.com" }
 ]
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.8"
 dependencies = [
     "numpy>=2.3.3",
     "reedsolo>=1.7.0",
     "sounddevice>=0.5.2",
+    "padasip>=1.2.1",
 ]
 
 [project.scripts]
