@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
 [project]
 name = "bytewaves"
 version = "0.1.0"
@@ -6,7 +10,21 @@ authors = [
     { name = "Tacio" }
 ]
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.11"
+keywords = ["acoustic-modem", "audio", "data-transmission", "mfsk", "reed-solomon"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Communications",
+    "Topic :: Multimedia :: Sound/Audio",
+]
 dependencies = [
     "numpy>=2.3.3",
     "reedsolo>=1.7.0",
@@ -14,83 +32,42 @@ dependencies = [
     "padasip>=1.2.1",
 ]
 
-[tool.pytest.ini_options]
-minversion = "6.0"
-addopts = "-ra -q --strict-markers --cov=bytewaves --cov-report=term-missing"
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
+[project.urls]
+Homepage = "https://github.com/tacio/bytewaves"
+Repository = "https://github.com/tacio/bytewaves"
+Issues = "https://github.com/tacio/bytewaves/issues"
 
-[tool.coverage.run]
-source = ["bytewaves"]
-omit = ["*/tests/*", "*/test_*"]
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "raise AssertionError",
-    "raise NotImplementedError",
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.7.0",
+    "ty",
 ]
 
-[tool.black]
-line-length = 127
-target-version = ['py38']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-)/
-'''
-
-[tool.isort]
-profile = "black"
-line_length = 127
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-ensure_newline_before_comments = true
-
-[tool.flake8]
-max-line-length = 127
-extend-ignore = ["E203", "W503"]
-exclude = [
-    ".git",
-    "__pycache__",
-    "build",
-    "dist",
-    "*.egg-info",
+[dependency-groups]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.7.0",
+    "ty",
 ]
 
-[tool.pytest.ini_options]
-minversion = "6.0"
-addopts = "-ra -q --strict-markers --cov=bytewaves --cov-report=term-missing"
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
+[tool.ruff]
+exclude = ["pyproject.toml", "CVS", ".git", ".hg", ".DS_Store"]
 
-[tool.coverage.run]
-source = ["bytewaves"]
-omit = ["*/tests/*", "*/test_*"]
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "raise AssertionError",
-    "raise NotImplementedError",
-]
+# [tool.flake8] moved to ruff
+# [tool.black] moved to ruff
+# [tool.mypy] moved to ty
 
 [project.scripts]
 bytewaves = "bytewaves.modem:main"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/bytewaves",
+    "/README.md",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["bytewaves"]

@@ -1,0 +1,36 @@
+# Configuration for ruff linter
+
+line-length = 127
+target-version = "py311"
+
+extend-exclude = [
+    "pyproject.toml",
+    "CVS",
+    ".git",
+    ".hg",
+    ".DS_Store",
+    "build/",
+    "dist/",
+    "*.egg-info/",
+    "__pycache__/",
+    ".pytest_cache/",
+    ".ruff_cache/",
+]
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E203",  # whitespace before ':' (conflicts with black)
+]
+
+[lint.isort]
+known-first-party = ["bytewaves", "tests"]
+
+[format]
+quote-style = "double"

@@ -1,21 +1,17 @@
+from unittest.mock import patch
+
 import numpy as np
 import pytest
-import sys
-import os
-from unittest.mock import patch, Mock
 
 from bytewaves.modem import (
-    text_to_sound,
-    find_scores_from_audio_chunk,
-    scores_to_byte,
-    _generate_sound_from_bytes,
-    attempt_decode,
-    AdaptiveEqualizer,
-    SAMPLE_RATE,
     BYTE_DURATION,
     MAX_BLOCK_SIZE,
-    N_ECC_BYTES,
-    PREAMBLE
+    SAMPLE_RATE,
+    AdaptiveEqualizer,
+    _generate_sound_from_bytes,
+    find_scores_from_audio_chunk,
+    scores_to_byte,
+    text_to_sound,
 )
 
 
@@ -38,7 +34,7 @@ class TestEdgeCases:
         # Create text larger than MAX_BLOCK_SIZE
         large_text = "A" * (MAX_BLOCK_SIZE + 1000)
 
-        with patch('builtins.print') as mock_print:
+        with patch("builtins.print") as mock_print:
             result = text_to_sound(large_text)
             assert len(result) == 0  # Should return empty for oversized data
             mock_print.assert_called_once()
@@ -55,7 +51,7 @@ class TestEdgeCases:
     def test_binary_data_input(self):
         """Test handling of binary data."""
         binary_data = bytes(range(256))  # All byte values
-        binary_text = binary_data.decode('latin-1')
+        binary_text = binary_data.decode("latin-1")
         result = text_to_sound(binary_text)
 
         # Should handle binary data
@@ -134,9 +130,7 @@ class TestEdgeCases:
     def test_concurrent_access_simulation(self):
         """Test simulation of concurrent access conditions."""
         # Test rapid successive calls
-        test_chunks = [
-            np.random.randn(1000).astype(np.float32) for _ in range(10)
-        ]
+        test_chunks = [np.random.randn(1000).astype(np.float32) for _ in range(10)]
 
         results = []
         for chunk in test_chunks:
@@ -163,7 +157,6 @@ class TestEdgeCases:
         # This is more of a configuration test
         # The SAMPLE_RATE is a constant, but we can test the effect of different rates
 
-        original_rate = SAMPLE_RATE
         chunk = np.random.randn(1000).astype(np.float32)
 
         # Test that our functions work with the configured rate
@@ -224,14 +217,14 @@ class TestEdgeCases:
         short_signal = np.random.randn(5)
         long_signal = np.random.randn(20)
 
-        with patch.object(equalizer.filt, 'run') as mock_run:
+        with patch.object(equalizer.filt, "run"):
             equalizer.train(short_signal, long_signal)
             # Should handle the length mismatch
 
         # Test with very short signals
         tiny_signal = np.random.randn(3)
 
-        with patch('builtins.print') as mock_print:
+        with patch("builtins.print"):
             equalizer.train(tiny_signal, tiny_signal)
             # Should warn about insufficient data
 
@@ -250,7 +243,7 @@ class TestEdgeCases:
     def test_preamble_detection_edge_cases(self):
         """Test preamble detection edge cases."""
         # Test with preamble-like but incorrect data
-        fake_preamble = b'\x15\x15\x87\x87'  # Close but not correct
+        fake_preamble = b"\x15\x15\x87\x87"  # Close but not correct
         fake_audio = _generate_sound_from_bytes(fake_preamble)
 
         # Process the fake preamble
@@ -299,9 +292,9 @@ class TestEdgeCases:
         """Test recovery from various system errors."""
         # Test with malformed input that might cause system errors
         malformed_inputs = [
-            np.array([float('inf')], dtype=np.float32),
-            np.array([float('-inf')], dtype=np.float32),
-            np.array([float('nan')], dtype=np.float32),
+            np.array([float("inf")], dtype=np.float32),
+            np.array([float("-inf")], dtype=np.float32),
+            np.array([float("nan")], dtype=np.float32),
         ]
 
         for malformed_input in malformed_inputs:
@@ -329,7 +322,7 @@ class TestEdgeCases:
 
         for i in range(10):
             signal = np.random.randn(100)
-            with patch.object(equalizer.filt, 'run'):
+            with patch.object(equalizer.filt, "run"):
                 equalizer.train(signal, signal)
 
         # Should complete without issues

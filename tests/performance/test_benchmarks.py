@@ -1,18 +1,16 @@
-import time
-import psutil
-import numpy as np
-import pytest
 import os
+import time
 from unittest.mock import patch
 
+import numpy as np
+import psutil
+
 from bytewaves.modem import (
-    text_to_sound,
-    find_scores_from_audio_chunk,
-    _generate_sound_from_bytes,
-    AdaptiveEqualizer,
-    SAMPLE_RATE,
     BYTE_DURATION,
-    MAX_BLOCK_SIZE
+    SAMPLE_RATE,
+    AdaptiveEqualizer,
+    find_scores_from_audio_chunk,
+    text_to_sound,
 )
 
 
@@ -64,7 +62,7 @@ class TestPerformance:
         start_time = time.time()
 
         for _ in range(num_iterations):
-            scores = find_scores_from_audio_chunk(test_chunk)
+            find_scores_from_audio_chunk(test_chunk)
 
         end_time = time.time()
         total_time = end_time - start_time
@@ -84,7 +82,7 @@ class TestPerformance:
 
         start_time = time.time()
 
-        with patch.object(equalizer.filt, 'run'):
+        with patch.object(equalizer.filt, "run"):
             equalizer.train(received_signal, desired_signal)
 
         end_time = time.time()
@@ -106,7 +104,7 @@ class TestPerformance:
             chunk_size = int(SAMPLE_RATE * BYTE_DURATION)
             if len(audio) >= chunk_size:
                 chunk = audio[:chunk_size]
-                scores = find_scores_from_audio_chunk(chunk)
+                find_scores_from_audio_chunk(chunk)
 
         final_memory = self.get_memory_usage()
         memory_increase = final_memory - initial_memory
@@ -142,7 +140,7 @@ class TestPerformance:
             if len(audio) > 0:
                 chunk_size = int(SAMPLE_RATE * BYTE_DURATION)
                 chunk = audio[:chunk_size]
-                scores = find_scores_from_audio_chunk(chunk)
+                find_scores_from_audio_chunk(chunk)
 
         end_time = time.time()
         total_time = end_time - start_time
@@ -161,13 +159,12 @@ class TestPerformance:
         # Perform CPU-intensive operations
         for i in range(50):
             chunk = np.random.randn(1000).astype(np.float32)
-            scores = find_scores_from_audio_chunk(chunk)
+            find_scores_from_audio_chunk(chunk)
 
         end_time = time.time()
 
         final_cpu_times = process.cpu_times()
-        cpu_time_used = (final_cpu_times.user + final_cpu_times.system) - \
-                       (initial_cpu_times.user + initial_cpu_times.system)
+        cpu_time_used = (final_cpu_times.user + final_cpu_times.system) - (initial_cpu_times.user + initial_cpu_times.system)
 
         execution_time = end_time - start_time
 
@@ -197,8 +194,8 @@ class TestPerformance:
         # Check that time scales reasonably (not exponentially)
         # Time should not increase dramatically with data size
         for i in range(1, len(times)):
-            ratio = times[i] / times[i-1] if times[i-1] > 0 else 1
-            size_ratio = data_sizes[i] / data_sizes[i-1]
+            ratio = times[i] / times[i - 1] if times[i - 1] > 0 else 1
+            size_ratio = data_sizes[i] / data_sizes[i - 1]
 
             # Time ratio should not be much larger than size ratio
             assert ratio < size_ratio * 10  # Allow 10x time for complexity
@@ -217,7 +214,7 @@ class TestPerformance:
                 if len(audio) > 0:
                     chunk_size = int(SAMPLE_RATE * BYTE_DURATION)
                     chunk = audio[:chunk_size]
-                    scores = find_scores_from_audio_chunk(chunk)
+                    find_scores_from_audio_chunk(chunk)
 
             except Exception as e:
                 errors.append(e)
@@ -245,9 +242,9 @@ class TestPerformance:
             if len(audio) > 0:
                 chunk_size = int(SAMPLE_RATE * BYTE_DURATION)
                 for j in range(0, min(len(audio), chunk_size * 5), chunk_size):
-                    chunk = audio[j:j + chunk_size]
+                    chunk = audio[j : j + chunk_size]
                     if len(chunk) == chunk_size:
-                        scores = find_scores_from_audio_chunk(chunk)
+                        find_scores_from_audio_chunk(chunk)
 
         final_memory = self.get_memory_usage()
         memory_increase = final_memory - initial_memory
@@ -273,7 +270,7 @@ class TestPerformance:
             if len(audio) > 0:
                 chunk_size = int(SAMPLE_RATE * BYTE_DURATION)
                 chunk = audio[:chunk_size]
-                scores = find_scores_from_audio_chunk(chunk)
+                find_scores_from_audio_chunk(chunk)
 
         # Calculate timing statistics
         mean_time = np.mean(times)
@@ -296,12 +293,13 @@ class TestPerformance:
             # Process in chunks
             chunk_size = int(SAMPLE_RATE * BYTE_DURATION)
             for j in range(0, min(len(audio), chunk_size * 3), chunk_size):
-                chunk = audio[j:j + chunk_size]
+                chunk = audio[j : j + chunk_size]
                 if len(chunk) == chunk_size:
-                    scores = find_scores_from_audio_chunk(chunk)
+                    find_scores_from_audio_chunk(chunk)
 
         # Force garbage collection
         import gc
+
         gc.collect()
 
         final_memory = self.get_memory_usage()
@@ -326,7 +324,7 @@ class TestPerformance:
             if len(audio) > 0:
                 chunk_size = int(SAMPLE_RATE * BYTE_DURATION)
                 chunk = audio[:chunk_size]
-                scores = find_scores_from_audio_chunk(chunk)
+                find_scores_from_audio_chunk(chunk)
 
             operations_count += 1
 
@@ -348,13 +346,12 @@ class TestPerformance:
         # Perform operations
         for i in range(30):
             chunk = np.random.randn(2000).astype(np.float32)
-            scores = find_scores_from_audio_chunk(chunk)
+            find_scores_from_audio_chunk(chunk)
 
         end_time = time.time()
         final_cpu_times = process.cpu_times()
 
-        cpu_time_used = (final_cpu_times.user + final_cpu_times.system) - \
-                       (initial_cpu_times.user + initial_cpu_times.system)
+        cpu_time_used = (final_cpu_times.user + final_cpu_times.system) - (initial_cpu_times.user + initial_cpu_times.system)
         wall_time = end_time - start_time
 
         if wall_time > 0:
@@ -376,9 +373,9 @@ class TestPerformance:
             chunk_size = int(SAMPLE_RATE * BYTE_DURATION)
             for j in range(min(5, len(audio) // chunk_size)):
                 start_idx = j * chunk_size
-                chunk = audio[start_idx:start_idx + chunk_size]
+                chunk = audio[start_idx : start_idx + chunk_size]
                 if len(chunk) == chunk_size:
-                    scores = find_scores_from_audio_chunk(chunk)
+                    find_scores_from_audio_chunk(chunk)
 
         end_time = time.time()
         stress_duration = end_time - start_time
@@ -395,17 +392,17 @@ class TestPerformance:
             # Vary the operation to simulate real usage
             if i % 2 == 0:
                 text = "Long running test"
-                audio = text_to_sound(text)
+                text_to_sound(text)
             else:
                 chunk = np.random.randn(1000).astype(np.float32)
-                scores = find_scores_from_audio_chunk(chunk)
+                find_scores_from_audio_chunk(chunk)
 
         end_time = time.time()
         duration = end_time - start_time
 
         # Should complete without issues
         assert duration < 20.0  # Less than 20 seconds
-        assert duration > 1.0   # Should take some time
+        assert duration > 1.0  # Should take some time
 
     def test_memory_leak_detection(self):
         """Test for potential memory leaks."""
@@ -422,7 +419,7 @@ class TestPerformance:
                 if len(audio) > 0:
                     chunk_size = int(SAMPLE_RATE * BYTE_DURATION)
                     chunk = audio[:chunk_size]
-                    scores = find_scores_from_audio_chunk(chunk)
+                    find_scores_from_audio_chunk(chunk)
 
             # Check memory after each iteration
             current_memory = self.get_memory_usage()
@@ -444,7 +441,7 @@ class TestPerformance:
             if len(audio) > 0:
                 chunk_size = int(SAMPLE_RATE * BYTE_DURATION)
                 chunk = audio[:chunk_size]
-                scores = find_scores_from_audio_chunk(chunk)
+                find_scores_from_audio_chunk(chunk)
             end_time = time.time()
             baseline_times.append(end_time - start_time)
 
@@ -459,7 +456,7 @@ class TestPerformance:
             if len(audio) > 0:
                 chunk_size = int(SAMPLE_RATE * BYTE_DURATION)
                 chunk = audio[:chunk_size]
-                scores = find_scores_from_audio_chunk(chunk)
+                find_scores_from_audio_chunk(chunk)
             end_time = time.time()
             current_times.append(end_time - start_time)
 
@@ -484,7 +481,7 @@ class TestPerformance:
             if len(audio) > 0:
                 chunk_size = int(SAMPLE_RATE * BYTE_DURATION)
                 chunk = audio[:chunk_size]
-                scores = find_scores_from_audio_chunk(chunk)
+                find_scores_from_audio_chunk(chunk)
 
         final_memory = self.get_memory_usage()
         memory_used = final_memory - initial_memory
@@ -510,7 +507,7 @@ class TestPerformance:
                 if len(audio) > 0:
                     chunk_size = int(SAMPLE_RATE * BYTE_DURATION)
                     chunk = audio[:chunk_size]
-                    scores = find_scores_from_audio_chunk(chunk)
+                    find_scores_from_audio_chunk(chunk)
 
                 # Simulate delay between operations
                 time.sleep(delay)

@@ -1,6 +1,6 @@
+from unittest.mock import patch
+
 import numpy as np
-import pytest
-from unittest.mock import Mock, patch
 
 from bytewaves.modem import AdaptiveEqualizer
 
@@ -33,7 +33,7 @@ class TestAdaptiveEqualizer:
         desired_signal = np.random.randn(100)
 
         # Mock the filter's run method to avoid padasip dependency issues
-        with patch.object(equalizer.filt, 'run') as mock_run:
+        with patch.object(equalizer.filt, "run") as mock_run:
             equalizer.train(received_signal, desired_signal)
             mock_run.assert_called_once_with(desired_signal, received_signal)
 
@@ -44,7 +44,7 @@ class TestAdaptiveEqualizer:
         received_signal = np.random.randn(50)  # Shorter signal
         desired_signal = np.random.randn(100)  # Longer signal
 
-        with patch.object(equalizer.filt, 'run') as mock_run:
+        with patch.object(equalizer.filt, "run") as mock_run:
             equalizer.train(received_signal, desired_signal)
             # Should truncate desired_signal to match received_signal length
             mock_run.assert_called_once()
@@ -58,7 +58,7 @@ class TestAdaptiveEqualizer:
         received_signal = np.random.randn(30)  # Shorter than filter length
         desired_signal = np.random.randn(30)
 
-        with patch('builtins.print') as mock_print:
+        with patch("builtins.print") as mock_print:
             equalizer.train(received_signal, desired_signal)
             mock_print.assert_called_once()
             assert "too short for training" in mock_print.call_args[0][0]
@@ -71,7 +71,7 @@ class TestAdaptiveEqualizer:
         test_signal = np.random.randn(100)
         expected_output = np.random.randn(100)
 
-        with patch.object(equalizer.filt, 'predict', return_value=expected_output) as mock_predict:
+        with patch.object(equalizer.filt, "predict", return_value=expected_output) as mock_predict:
             result = equalizer.apply(test_signal)
             mock_predict.assert_called_once_with(test_signal)
             np.testing.assert_array_equal(result, expected_output)
@@ -84,7 +84,7 @@ class TestAdaptiveEqualizer:
         received_signal = np.random.randn(signal_length)
         desired_signal = np.random.randn(signal_length)
 
-        with patch.object(equalizer.filt, 'run') as mock_run:
+        with patch.object(equalizer.filt, "run") as mock_run:
             equalizer.train(received_signal, desired_signal)
             mock_run.assert_called_once_with(desired_signal, received_signal)
 
@@ -99,7 +99,7 @@ class TestAdaptiveEqualizer:
         received_signal = np.random.randn(100)
         desired_signal = np.random.randn(100)
 
-        with patch.object(equalizer.filt, 'run') as mock_run:
+        with patch.object(equalizer.filt, "run") as mock_run:
             equalizer.train(received_signal, desired_signal)
             # Verify that training was called (weights would be updated by padasip)
             mock_run.assert_called_once()
@@ -110,7 +110,7 @@ class TestAdaptiveEqualizer:
 
         empty_signal = np.array([])
 
-        with patch.object(equalizer.filt, 'run') as mock_run:
+        with patch.object(equalizer.filt, "run") as mock_run:
             equalizer.train(empty_signal, empty_signal)
             # Should handle empty arrays gracefully
             mock_run.assert_called_once_with(empty_signal, empty_signal)
@@ -121,6 +121,6 @@ class TestAdaptiveEqualizer:
 
         single_signal = np.array([1.0])
 
-        with patch.object(equalizer.filt, 'run') as mock_run:
+        with patch.object(equalizer.filt, "run") as mock_run:
             equalizer.train(single_signal, single_signal)
             mock_run.assert_called_once_with(single_signal, single_signal)

@@ -50,15 +50,16 @@ The project includes a comprehensive testing framework:
 ./scripts/test.sh
 
 # Run specific test categories
-make test-unit        # Unit tests only
-make test-integration # Integration tests only
-make test-performance # Performance tests only
+just test-unit # Unit tests only
+just test-int  # Integration tests only
+just test-perf # Performance tests only
 
 # Run with coverage report
-make test-all
+just test-all
 ```
 
-For detailed testing documentation, see [`tests/README.md`](tests/README.md).
+For detailed testing documentation, see the
+[testing guide](https://github.com/tacio/bytewaves/blob/main/tests/README.md).
 
 ## Technical Specifications
 
@@ -137,7 +138,7 @@ Improving the user interface will make the modem more intuitive and easier to us
 
 To simplify distribution and installation, the project will be packaged for standard repositories.
 
-- **PyPI Distribution**: Package the project for distribution on the Python Package Index (PyPI), allowing for easy installation via `pip`.
+- **✅ PyPI Distribution**: The project includes standard wheel/source builds and automated trusted publishing to PyPI.
 - **Dependency Management**: Streamline dependency management to ensure a smooth installation process across different platforms.
 
 ## Development
@@ -146,7 +147,7 @@ To simplify distribution and installation, the project will be packaged for stan
 
 1. **Clone the repository**:
    ```sh
-   git clone <repository-url>
+   git clone https://github.com/tacio/bytewaves.git
    cd bytewaves
    ```
 
@@ -162,15 +163,15 @@ To simplify distribution and installation, the project will be packaged for stan
 3. **Run tests**:
    ```sh
    # Quick test run
-   make quick-test
+   just quick-test
 
    # Full test suite
-   make test-all
+   just test-all
 
    # Run specific test categories
-   make test-unit        # Unit tests
-   make test-integration # Integration tests
-   make test-performance # Performance tests
+   just test-unit # Unit tests
+   just test-int  # Integration tests
+   just test-perf # Performance tests
    ```
 
 ### Code Quality
@@ -179,13 +180,13 @@ The project maintains high code quality standards:
 
 ```sh
 # Format code
-make format
+just format
 
 # Lint code
-make lint
+just lint
 
-# Check security vulnerabilities
-make security
+# Run type checks
+just typecheck
 ```
 
 ### Testing Framework
@@ -197,7 +198,7 @@ The comprehensive testing framework includes:
 - **Performance Tests**: Benchmarking and resource monitoring
 - **Edge Case Tests**: Robustness under error conditions
 
-See [`tests/README.md`](tests/README.md) for detailed testing documentation.
+See the [testing guide](https://github.com/tacio/bytewaves/blob/main/tests/README.md) for detailed testing documentation.
 
 ### Contributing
 
@@ -205,8 +206,20 @@ See [`tests/README.md`](tests/README.md) for detailed testing documentation.
 2. Create a feature branch
 3. Make your changes
 4. Add tests for new functionality
-5. Ensure all tests pass: `make ci`
+5. Ensure all tests pass: `just ci`
 6. Submit a pull request
+
+### Releasing to PyPI
+
+Releases use PyPI Trusted Publishing; no long-lived API token is stored in GitHub.
+
+1. In PyPI's publishing settings, add a pending trusted publisher for project `bytewaves`, owner `tacio`, repository `bytewaves`, workflow
+   `publish.yml`, and environment `pypi`.
+2. Update `project.version` in `pyproject.toml` and commit the change.
+3. Create and publish a GitHub release tagged `v<version>` (for example, `v0.1.0`).
+
+The release workflow verifies that the tag matches the package version, builds both the wheel and source distribution, validates their
+metadata, publishes them to PyPI, and records build provenance.
 
 ### Project Structure
 

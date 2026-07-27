@@ -1,15 +1,9 @@
-import pytest
 import zlib
-import numpy as np
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 
-from bytewaves.modem import (
-    text_to_sound,
-    attempt_decode,
-    N_ECC_BYTES,
-    MAX_BLOCK_SIZE,
-    PREAMBLE
-)
+import numpy as np
+
+from bytewaves.modem import MAX_BLOCK_SIZE, N_ECC_BYTES, attempt_decode, text_to_sound
 
 
 class TestReedSolomon:
@@ -28,8 +22,8 @@ class TestReedSolomon:
     def test_reed_solomon_encoding_with_crc(self):
         """Test that CRC is correctly calculated and included."""
         test_text = "Test CRC"
-        data_bytes = test_text.encode('utf-8')
-        expected_crc = zlib.crc32(data_bytes)
+        data_bytes = test_text.encode("utf-8")
+        zlib.crc32(data_bytes)
 
         # Encode the text
         result = text_to_sound(test_text)
@@ -44,12 +38,12 @@ class TestReedSolomon:
     def test_reed_solomon_block_size_calculation(self):
         """Test Reed-Solomon block size calculation."""
         test_text = "A" * 100  # Known length
-        data_bytes = test_text.encode('utf-8')
-        crc_bytes = zlib.crc32(data_bytes).to_bytes(4, 'big')
+        data_bytes = test_text.encode("utf-8")
+        crc_bytes = zlib.crc32(data_bytes).to_bytes(4, "big")
         data_with_crc = data_bytes + crc_bytes
 
         # Total block size should be data + CRC + ECC
-        expected_n = len(data_with_crc) + N_ECC_BYTES
+        len(data_with_crc) + N_ECC_BYTES
 
         result = text_to_sound(test_text)
         # Should handle this size correctly
@@ -59,9 +53,9 @@ class TestReedSolomon:
         """Test successful decoding with correct data."""
         # Create a simple test case
         test_text = "OK"
-        original_data = test_text.encode('utf-8')
+        original_data = test_text.encode("utf-8")
         crc = zlib.crc32(original_data)
-        data_with_crc = original_data + crc.to_bytes(4, 'big')
+        data_with_crc = original_data + crc.to_bytes(4, "big")
 
         # Calculate expected block size
         n = len(data_with_crc) + N_ECC_BYTES
@@ -82,7 +76,7 @@ class TestReedSolomon:
             accumulated_scores.append(np.zeros(8))  # ECC bytes are 0
 
         # Attempt decoding
-        with patch('builtins.print') as mock_print:
+        with patch("builtins.print"):
             success = attempt_decode(accumulated_scores, n, 1)
 
             # Note: This test might fail due to the complexity of the ECC decoding
@@ -93,11 +87,11 @@ class TestReedSolomon:
     def test_attempt_decode_crc_mismatch(self):
         """Test decoding with CRC mismatch."""
         test_text = "Test"
-        original_data = test_text.encode('utf-8')
+        original_data = test_text.encode("utf-8")
 
         # Create data with wrong CRC
         wrong_crc = zlib.crc32(b"Wrong")
-        data_with_crc = original_data + wrong_crc.to_bytes(4, 'big')
+        data_with_crc = original_data + wrong_crc.to_bytes(4, "big")
 
         n = len(data_with_crc) + N_ECC_BYTES
 
@@ -116,7 +110,7 @@ class TestReedSolomon:
         for _ in range(N_ECC_BYTES):
             accumulated_scores.append(np.zeros(8))
 
-        with patch('builtins.print') as mock_print:
+        with patch("builtins.print") as mock_print:
             success = attempt_decode(accumulated_scores, n, 1)
 
             # Should fail due to CRC mismatch
@@ -131,7 +125,7 @@ class TestReedSolomon:
         n = 50  # Some block size
         accumulated_scores = [np.zeros(8) for _ in range(n)]
 
-        with patch('builtins.print') as mock_print:
+        with patch("builtins.print"):
             success = attempt_decode(accumulated_scores, n, 1)
 
             # Should handle gracefully and return boolean
@@ -143,7 +137,7 @@ class TestReedSolomon:
         small_n = 5
         accumulated_scores = [np.zeros(8) for _ in range(small_n)]
 
-        with patch('builtins.print') as mock_print:
+        with patch("builtins.print"):
             success = attempt_decode(accumulated_scores, small_n, 1)
 
             # Should handle gracefully
@@ -160,9 +154,9 @@ class TestReedSolomon:
     def test_attempt_decode_multiple_transmissions(self):
         """Test decoding with multiple transmission attempts."""
         test_text = "Multi"
-        original_data = test_text.encode('utf-8')
+        original_data = test_text.encode("utf-8")
         crc = zlib.crc32(original_data)
-        data_with_crc = original_data + crc.to_bytes(4, 'big')
+        data_with_crc = original_data + crc.to_bytes(4, "big")
         n = len(data_with_crc) + N_ECC_BYTES
 
         # Create score data for multiple transmissions
@@ -180,7 +174,7 @@ class TestReedSolomon:
         for _ in range(N_ECC_BYTES):
             accumulated_scores.append(np.zeros(8))
 
-        with patch('builtins.print') as mock_print:
+        with patch("builtins.print"):
             success = attempt_decode(accumulated_scores, n, 3)  # 3 transmissions
 
             # Should handle multiple transmissions
@@ -212,7 +206,7 @@ class TestReedSolomon:
         # Test with data that might cause encoding issues
         test_text = "Test encoding errors"
 
-        with patch('builtins.print') as mock_print:
+        with patch("builtins.print"):
             result = text_to_sound(test_text)
 
             # Should either succeed or handle errors gracefully
@@ -224,7 +218,7 @@ class TestReedSolomon:
         n = 30
         malformed_scores = [np.full(8, 100.0) for _ in range(n)]  # All bits set
 
-        with patch('builtins.print') as mock_print:
+        with patch("builtins.print"):
             success = attempt_decode(malformed_scores, n, 1)
 
             # Should handle errors gracefully
@@ -238,17 +232,17 @@ class TestReedSolomon:
         incorrect_crc = zlib.crc32(b"Different data")
 
         # Simulate the CRC validation that happens in attempt_decode
-        received_crc_bytes = correct_crc.to_bytes(4, 'big')
+        received_crc_bytes = correct_crc.to_bytes(4, "big")
         received_data = test_data
-        received_crc = int.from_bytes(received_crc_bytes, 'big')
+        received_crc = int.from_bytes(received_crc_bytes, "big")
         expected_crc = zlib.crc32(received_data)
 
         # CRC should match
         assert received_crc == expected_crc
 
         # Test with incorrect CRC
-        received_crc_bytes = incorrect_crc.to_bytes(4, 'big')
-        received_crc = int.from_bytes(received_crc_bytes, 'big')
+        received_crc_bytes = incorrect_crc.to_bytes(4, "big")
+        received_crc = int.from_bytes(received_crc_bytes, "big")
 
         # CRC should not match
         assert received_crc != expected_crc

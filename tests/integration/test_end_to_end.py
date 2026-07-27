@@ -1,17 +1,14 @@
 import numpy as np
-import pytest
-from unittest.mock import patch, Mock
 
 from bytewaves.modem import (
-    text_to_sound,
+    BYTE_DURATION,
+    PAUSE_DURATION,
+    PREAMBLE,
+    SAMPLE_RATE,
+    _generate_sound_from_bytes,
     find_scores_from_audio_chunk,
     scores_to_byte,
-    _generate_sound_from_bytes,
-    PREAMBLE,
-    N_ECC_BYTES,
-    SAMPLE_RATE,
-    BYTE_DURATION,
-    PAUSE_DURATION
+    text_to_sound,
 )
 
 
@@ -21,7 +18,7 @@ class TestEndToEndTransmission:
     def test_complete_transmission_short_text(self):
         """Test complete transmission pipeline with short text."""
         test_text = "Hi"
-        original_data = test_text.encode('utf-8')
+        test_text.encode("utf-8")
 
         # Step 1: Encode text to sound
         audio_signal = text_to_sound(test_text)
@@ -38,7 +35,7 @@ class TestEndToEndTransmission:
 
         # Split audio into chunks
         for i in range(0, len(audio_signal), chunk_size):
-            chunk = audio_signal[i:i + chunk_size]
+            chunk = audio_signal[i : i + chunk_size]
             if len(chunk) > 0:
                 # Pad or truncate to chunk size
                 if len(chunk) < chunk_size:
@@ -50,7 +47,7 @@ class TestEndToEndTransmission:
         for chunk in chunks:
             if len(chunk) >= int(SAMPLE_RATE * BYTE_DURATION):
                 # Extract the data portion of the chunk
-                data_chunk = chunk[:int(SAMPLE_RATE * BYTE_DURATION)]
+                data_chunk = chunk[: int(SAMPLE_RATE * BYTE_DURATION)]
                 scores = find_scores_from_audio_chunk(data_chunk)
                 byte_val = scores_to_byte(scores)
                 extracted_bytes.append(byte_val)
@@ -71,7 +68,7 @@ class TestEndToEndTransmission:
         # Calculate expected length
         expected_chunks = len(test_bytes)  # No pauses in continuous mode
         chunk_size = int(SAMPLE_RATE * BYTE_DURATION)
-        expected_length = expected_chunks * chunk_size
+        expected_chunks * chunk_size
 
         # Process the audio to extract bytes
         extracted_bytes = []
@@ -156,7 +153,7 @@ class TestEndToEndTransmission:
 
         # Test audio signal properties
         assert np.isfinite(audio).all()  # No NaN or infinite values
-        assert not np.all(audio == 0)    # Not silent
+        assert not np.all(audio == 0)  # Not silent
 
         # Check amplitude is reasonable
         max_amplitude = np.max(np.abs(audio))
@@ -177,7 +174,7 @@ class TestEndToEndTransmission:
         processed_chunks = []
 
         for i in range(0, len(audio), chunk_size):
-            chunk = audio[i:i + chunk_size]
+            chunk = audio[i : i + chunk_size]
 
             # Pad if necessary
             if len(chunk) < chunk_size:
@@ -185,7 +182,7 @@ class TestEndToEndTransmission:
 
             # Process chunk
             if len(chunk) >= int(SAMPLE_RATE * BYTE_DURATION):
-                data_chunk = chunk[:int(SAMPLE_RATE * BYTE_DURATION)]
+                data_chunk = chunk[: int(SAMPLE_RATE * BYTE_DURATION)]
                 scores = find_scores_from_audio_chunk(data_chunk)
                 processed_chunks.append(scores)
 
@@ -199,7 +196,7 @@ class TestEndToEndTransmission:
         audio = _generate_sound_from_bytes([test_byte])
 
         # Extract the frequency content
-        chunk = audio[:int(SAMPLE_RATE * BYTE_DURATION)]
+        chunk = audio[: int(SAMPLE_RATE * BYTE_DURATION)]
         scores = find_scores_from_audio_chunk(chunk)
 
         # The first bit should be detected
@@ -258,7 +255,7 @@ class TestEndToEndTransmission:
         test_text = "Flow"
 
         # 1. Text to bytes
-        data_bytes = test_text.encode('utf-8')
+        data_bytes = test_text.encode("utf-8")
         assert len(data_bytes) > 0
 
         # 2. Bytes to audio

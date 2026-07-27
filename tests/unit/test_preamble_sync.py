@@ -1,16 +1,15 @@
-import numpy as np
-import pytest
 import collections
-from unittest.mock import Mock, patch
+
+import numpy as np
 
 from bytewaves.modem import (
+    BYTE_DURATION,
+    MAX_BLOCK_SIZE,
+    N_ECC_BYTES,
+    PREAMBLE,
+    SAMPLE_RATE,
     find_scores_from_audio_chunk,
     scores_to_byte,
-    PREAMBLE,
-    N_ECC_BYTES,
-    MAX_BLOCK_SIZE,
-    SAMPLE_RATE,
-    BYTE_DURATION
 )
 
 
@@ -109,11 +108,7 @@ class TestPreambleSync:
     def test_packet_length_validation(self):
         """Test packet length validation logic."""
         # Test valid packet lengths
-        valid_lengths = [
-            N_ECC_BYTES + 5,  # Minimum reasonable length
-            100,              # Medium length
-            MAX_BLOCK_SIZE    # Maximum length
-        ]
+        valid_lengths = [N_ECC_BYTES + 5, 100, MAX_BLOCK_SIZE]  # Minimum reasonable length  # Medium length  # Maximum length
 
         for length in valid_lengths:
             if N_ECC_BYTES + 4 < length <= MAX_BLOCK_SIZE:
@@ -122,12 +117,7 @@ class TestPreambleSync:
                 assert False  # Should be considered invalid
 
         # Test invalid packet lengths
-        invalid_lengths = [
-            N_ECC_BYTES + 3,    # Too small
-            MAX_BLOCK_SIZE + 1, # Too large
-            0,                  # Zero
-            -1                  # Negative
-        ]
+        invalid_lengths = [N_ECC_BYTES + 3, MAX_BLOCK_SIZE + 1, 0, -1]  # Too small  # Too large  # Zero  # Negative
 
         for length in invalid_lengths:
             assert not (N_ECC_BYTES + 4 < length <= MAX_BLOCK_SIZE)
@@ -149,7 +139,7 @@ class TestPreambleSync:
         # Test invalid states
         invalid_states = ["INVALID", "", "123", None]
         for state in invalid_states:
-            assert not (state in ["HUNTING", "AWAITING_LENGTH", "COLLECTING"])
+            assert state not in ["HUNTING", "AWAITING_LENGTH", "COLLECTING"]
 
     def test_byte_index_management(self):
         """Test byte index management during packet collection."""
@@ -209,6 +199,7 @@ class TestPreambleSync:
 
         # Simulate timeout
         import time
+
         start_time = time.time()
         time.sleep(0.1)  # Short delay
         elapsed = time.time() - start_time

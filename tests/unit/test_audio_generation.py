@@ -1,14 +1,6 @@
 import numpy as np
-import pytest
 
-from bytewaves.modem import (
-    _generate_sound_from_bytes,
-    SAMPLE_RATE,
-    BYTE_DURATION,
-    PAUSE_DURATION,
-    FREQUENCIES,
-    BASE_FREQ
-)
+from bytewaves.modem import BASE_FREQ, BYTE_DURATION, FREQUENCIES, PAUSE_DURATION, SAMPLE_RATE, _generate_sound_from_bytes
 
 
 class TestAudioGeneration:
@@ -34,8 +26,7 @@ class TestAudioGeneration:
         result = _generate_sound_from_bytes(test_bytes)
 
         # Should have 3 byte durations + 2 pauses
-        expected_samples = (3 * int(SAMPLE_RATE * BYTE_DURATION) +
-                           2 * int(SAMPLE_RATE * PAUSE_DURATION))
+        expected_samples = 3 * int(SAMPLE_RATE * BYTE_DURATION) + 2 * int(SAMPLE_RATE * PAUSE_DURATION)
         assert len(result) == expected_samples
 
     def test_generate_sound_from_all_bits_set(self):
@@ -81,7 +72,7 @@ class TestAudioGeneration:
             # Check that we get a sinusoidal signal at the expected frequency
             # Use FFT to verify the frequency content
             fft_result = np.fft.fft(result)
-            fft_freqs = np.fft.fftfreq(len(result), 1/SAMPLE_RATE)
+            fft_freqs = np.fft.fftfreq(len(result), 1 / SAMPLE_RATE)
             magnitudes = np.abs(fft_result)
 
             # Find the peak frequency (should be close to expected frequency)

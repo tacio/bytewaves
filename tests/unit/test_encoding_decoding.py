@@ -1,18 +1,18 @@
-import numpy as np
-import pytest
 import zlib
-from unittest.mock import patch, Mock
+from unittest.mock import patch
+
+import numpy as np
 
 from bytewaves.modem import (
-    text_to_sound,
-    find_scores_from_audio_chunk,
-    scores_to_byte,
-    SAMPLE_RATE,
     BYTE_DURATION,
     FREQUENCIES,
-    PREAMBLE,
+    MAX_BLOCK_SIZE,
     N_ECC_BYTES,
-    MAX_BLOCK_SIZE
+    PREAMBLE,
+    SAMPLE_RATE,
+    find_scores_from_audio_chunk,
+    scores_to_byte,
+    text_to_sound,
 )
 
 
@@ -52,7 +52,7 @@ class TestEncodingDecoding:
         # Create a very large string that will exceed MAX_BLOCK_SIZE
         large_text = "A" * (MAX_BLOCK_SIZE - N_ECC_BYTES - 4 + 10)
 
-        with patch('builtins.print') as mock_print:
+        with patch("builtins.print") as mock_print:
             result = text_to_sound(large_text)
             assert len(result) == 0  # Should return empty array for oversized data
             mock_print.assert_called_once()
@@ -61,8 +61,8 @@ class TestEncodingDecoding:
     def test_crc_calculation(self):
         """Test that CRC is correctly calculated and appended."""
         test_text = "Test"
-        data_bytes = test_text.encode('utf-8')
-        expected_crc = zlib.crc32(data_bytes)
+        data_bytes = test_text.encode("utf-8")
+        zlib.crc32(data_bytes)
 
         # We can't directly access the CRC in the encoded data without decoding,
         # but we can verify the encoding process completes successfully
