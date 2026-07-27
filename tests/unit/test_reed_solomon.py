@@ -2,6 +2,7 @@ import zlib
 from unittest.mock import patch
 
 import numpy as np
+from reedsolo import RSCodec
 
 from bytewaves.modem import MAX_BLOCK_SIZE, N_ECC_BYTES, attempt_decode, text_to_sound
 
@@ -95,9 +96,13 @@ class TestReedSolomon:
 
         n = len(data_with_crc) + N_ECC_BYTES
 
-        # Create score data
+        # Reed-Solomon encode the internally consistent block so decoding reaches
+        # the application-level CRC validation.
+        encoded_message = RSCodec(N_ECC_BYTES, nsize=n).encode(data_with_crc)
+
+        # Create perfect score data for the encoded block.
         accumulated_scores = []
-        for byte_val in data_with_crc:
+        for byte_val in encoded_message:
             byte_scores = np.zeros(8)
             for i in range(8):
                 if (byte_val >> i) & 1:
@@ -105,10 +110,6 @@ class TestReedSolomon:
                 else:
                     byte_scores[i] = -5.0
             accumulated_scores.append(byte_scores)
-
-        # Add ECC bytes
-        for _ in range(N_ECC_BYTES):
-            accumulated_scores.append(np.zeros(8))
 
         with patch("builtins.print") as mock_print:
             success = attempt_decode(accumulated_scores, n, 1)

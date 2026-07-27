@@ -4,6 +4,7 @@ import numpy as np
 
 from bytewaves.modem import (
     BYTE_DURATION,
+    FREQUENCIES,
     MAX_BLOCK_SIZE,
     N_ECC_BYTES,
     PREAMBLE,
@@ -30,7 +31,7 @@ class TestPreambleSync:
             chunk = np.zeros(samples, dtype=np.float32)
             for i in range(8):
                 if (byte_val >> i) & 1:
-                    freq = [1000, 1193, 1420, 1690, 2012, 2395, 2850, 3393][i]  # Approximate frequencies
+                    freq = FREQUENCIES[i]
                     chunk += np.sin(2 * np.pi * freq * t)
 
             if np.max(np.abs(chunk)) > 0:
@@ -62,7 +63,7 @@ class TestPreambleSync:
         chunk = np.zeros(samples, dtype=np.float32)
         for i in range(8):
             if (byte_val >> i) & 1:
-                freq = [1000, 1193, 1420, 1690, 2012, 2395, 2850, 3393][i]
+                freq = FREQUENCIES[i]
                 chunk += 0.5 * np.sin(2 * np.pi * freq * t)
 
         # Add noise

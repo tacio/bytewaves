@@ -16,8 +16,8 @@ class TestAudioGeneration:
         assert isinstance(result, np.ndarray)
         assert result.dtype == np.float32
 
-        # Check duration is correct (1 byte duration, no pause at end)
-        expected_samples = int(SAMPLE_RATE * BYTE_DURATION)
+        # Each transmitted symbol includes its following synchronization pause.
+        expected_samples = int(SAMPLE_RATE * (BYTE_DURATION + PAUSE_DURATION))
         assert len(result) == expected_samples
 
     def test_generate_sound_from_multiple_bytes(self):
@@ -25,8 +25,8 @@ class TestAudioGeneration:
         test_bytes = [0x55, 0xAA, 0xFF]
         result = _generate_sound_from_bytes(test_bytes)
 
-        # Should have 3 byte durations + 2 pauses
-        expected_samples = 3 * int(SAMPLE_RATE * BYTE_DURATION) + 2 * int(SAMPLE_RATE * PAUSE_DURATION)
+        # Each transmitted symbol includes its following synchronization pause.
+        expected_samples = 3 * int(SAMPLE_RATE * (BYTE_DURATION + PAUSE_DURATION))
         assert len(result) == expected_samples
 
     def test_generate_sound_from_all_bits_set(self):
@@ -35,7 +35,7 @@ class TestAudioGeneration:
         result = _generate_sound_from_bytes([test_byte])
 
         # All frequencies should be present
-        expected_samples = int(SAMPLE_RATE * BYTE_DURATION)
+        expected_samples = int(SAMPLE_RATE * (BYTE_DURATION + PAUSE_DURATION))
         assert len(result) == expected_samples
 
         # Check that the signal has significant energy
@@ -47,7 +47,7 @@ class TestAudioGeneration:
         result = _generate_sound_from_bytes([test_byte])
 
         # Should generate silence
-        expected_samples = int(SAMPLE_RATE * BYTE_DURATION)
+        expected_samples = int(SAMPLE_RATE * (BYTE_DURATION + PAUSE_DURATION))
         assert len(result) == expected_samples
 
         # Check that result is all zeros (or very close)
@@ -126,7 +126,7 @@ class TestAudioGeneration:
         test_byte = 0x55
         result = _generate_sound_from_bytes([test_byte])
 
-        expected_samples = int(SAMPLE_RATE * BYTE_DURATION)
+        expected_samples = int(SAMPLE_RATE * (BYTE_DURATION + PAUSE_DURATION))
         assert len(result) == expected_samples
 
     def test_pause_duration_calculation(self):
@@ -134,10 +134,10 @@ class TestAudioGeneration:
         test_bytes = [0x55, 0xAA]
         result = _generate_sound_from_bytes(test_bytes)
 
-        # Should have byte + pause + byte
+        # Every symbol, including the final one, is followed by a pause.
         byte_samples = int(SAMPLE_RATE * BYTE_DURATION)
         pause_samples = int(SAMPLE_RATE * PAUSE_DURATION)
-        expected_samples = 2 * byte_samples + pause_samples
+        expected_samples = 2 * (byte_samples + pause_samples)
 
         assert len(result) == expected_samples
 

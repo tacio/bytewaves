@@ -20,8 +20,8 @@ import zlib
 from typing import Any
 
 import numpy as np
-import padasip as pa
 import sounddevice as sd
+from padasip.filters import FilterLMS
 from reedsolo import ReedSolomonError, RSCodec
 
 # --- Configuration ---
@@ -51,7 +51,7 @@ class AdaptiveEqualizer:
 
     def __init__(self, filter_len: int = 20, mu: float = 0.01) -> None:
         self.filter_len = filter_len
-        self.filt = pa.filters.FilterLMS(n=filter_len, mu=mu, w="zeros")
+        self.filt = FilterLMS(n=filter_len, mu=mu, w="zeros")
 
     def train(self, received_signal: np.ndarray, desired_signal: np.ndarray) -> None:
         if len(received_signal) < len(desired_signal):
@@ -69,6 +69,9 @@ class AdaptiveEqualizer:
 
 def _generate_sound_from_bytes(byte_sequence: bytes | list[int], include_pauses: bool = True) -> np.ndarray:
     """Generates a sound wave from a sequence of bytes."""
+    if not byte_sequence:
+        return np.array([], dtype=np.float32)
+
     full_wave: list[np.ndarray] = []
     t_byte = np.linspace(0, BYTE_DURATION, int(SAMPLE_RATE * BYTE_DURATION), endpoint=False)
     silence_byte = np.zeros(int(SAMPLE_RATE * PAUSE_DURATION))
@@ -153,6 +156,11 @@ def start_sending() -> None:
 
 
 def find_scores_from_audio_chunk(chunk: np.ndarray) -> np.ndarray:
+    chunk = np.asarray(chunk).reshape(-1)
+    if len(chunk) < 2:
+        return np.zeros(8)
+    chunk = np.nan_to_num(chunk, nan=0.0, posinf=0.0, neginf=0.0)
+
     fft_result = np.fft.fft(chunk)
     fft_freqs = np.fft.fftfreq(len(chunk), 1 / SAMPLE_RATE)
     magnitudes = np.abs(fft_result)
@@ -160,9 +168,11 @@ def find_scores_from_audio_chunk(chunk: np.ndarray) -> np.ndarray:
     fft_freqs = fft_freqs[positive_mask]
     magnitudes = magnitudes[positive_mask]
     scores = np.zeros(8)
+    if len(magnitudes) == 0:
+        return scores
     noise_floor = float(np.mean(magnitudes))
     if noise_floor < 1e-9:
-        noise_floor = 1e-9
+        return scores
     for i, freq in enumerate(FREQUENCIES):
         freq_index = int(np.argmin(np.abs(fft_freqs - freq)))
         window = 5
@@ -188,7 +198,7 @@ def attempt_decode(accumulated_scores: list[np.ndarray], n: int, transmissions_c
     best_guess_bytes = bytearray(scores_to_byte(scores) for scores in accumulated_scores)
     try:
         rs_codec = RSCodec(N_ECC_BYTES, nsize=n)
-        decoded_message, _ = rs_codec.decode(best_guess_bytes)
+        decoded_message = rs_codec.decode(best_guess_bytes)[0]
         received_crc_bytes = decoded_message[-4:]
         received_data = decoded_message[:-4]
         received_crc = int.from_bytes(received_crc_bytes, "big")

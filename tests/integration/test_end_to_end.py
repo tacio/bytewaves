@@ -280,7 +280,8 @@ class TestEndToEndTransmission:
         audio = text_to_sound(test_text)
 
         # Audio should not be extremely large
-        max_reasonable_samples = SAMPLE_RATE * 5  # 5 seconds
+        # At 40 ms per packet byte, this valid 165-byte packet lasts 6.6 seconds.
+        max_reasonable_samples = SAMPLE_RATE * 10
         assert len(audio) < max_reasonable_samples
 
         # Memory usage should be reasonable

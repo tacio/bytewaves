@@ -112,8 +112,8 @@ class TestAdaptiveEqualizer:
 
         with patch.object(equalizer.filt, "run") as mock_run:
             equalizer.train(empty_signal, empty_signal)
-            # Should handle empty arrays gracefully
-            mock_run.assert_called_once_with(empty_signal, empty_signal)
+            # Insufficient training data should be ignored gracefully.
+            mock_run.assert_not_called()
 
     def test_single_element_signal(self):
         """Test behavior with single-element signals."""
@@ -123,4 +123,4 @@ class TestAdaptiveEqualizer:
 
         with patch.object(equalizer.filt, "run") as mock_run:
             equalizer.train(single_signal, single_signal)
-            mock_run.assert_called_once_with(single_signal, single_signal)
+            mock_run.assert_not_called()

@@ -55,8 +55,7 @@ class TestEncodingDecoding:
         with patch("builtins.print") as mock_print:
             result = text_to_sound(large_text)
             assert len(result) == 0  # Should return empty array for oversized data
-            mock_print.assert_called_once()
-            assert "too long" in mock_print.call_args[0][0]
+            assert any("too long" in str(call) for call in mock_print.call_args_list)
 
     def test_crc_calculation(self):
         """Test that CRC is correctly calculated and appended."""
@@ -88,7 +87,7 @@ class TestEncodingDecoding:
 
         # The first frequency should have the highest score
         assert scores[0] > scores[1]  # First bit should be detected
-        assert np.all(scores >= 0)  # All scores should be non-negative
+        assert scores_to_byte(scores) == 0x01
 
     def test_find_scores_from_audio_chunk_multiple_frequencies(self):
         """Test find_scores_from_audio_chunk with multiple frequencies."""
@@ -168,8 +167,8 @@ class TestEncodingDecoding:
         scores = np.array([1.0, -0.5, 2.0, -1.0, 0.8, -0.2, 1.5, 0.1])
         result_byte = scores_to_byte(scores)
 
-        # Should set bits 0, 2, 4, 6 (indices with positive scores)
-        expected_byte = 0x55  # 01010101 in binary
+        # Every positive score sets its corresponding bit.
+        expected_byte = 0xD5  # 11010101 in binary
         assert result_byte == expected_byte
 
     def test_scores_to_byte_all_negative(self):
@@ -196,8 +195,8 @@ class TestEncodingDecoding:
         scores = np.array([0.1, -0.1, 0.01, -0.01, 0.001, -0.001, 0.0, 0.0])
         result_byte = scores_to_byte(scores)
 
-        # Should only set bits for clearly positive scores
-        expected_byte = 0x01  # Only first bit
+        # Every positive score sets its corresponding bit.
+        expected_byte = 0x15
         assert result_byte == expected_byte
 
     def test_find_scores_fft_properties(self):

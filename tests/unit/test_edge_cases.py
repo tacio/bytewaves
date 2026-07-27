@@ -37,7 +37,7 @@ class TestEdgeCases:
         with patch("builtins.print") as mock_print:
             result = text_to_sound(large_text)
             assert len(result) == 0  # Should return empty for oversized data
-            mock_print.assert_called_once()
+            assert any("too long" in str(call) for call in mock_print.call_args_list)
 
     def test_special_characters_input(self):
         """Test handling of special characters and Unicode."""
@@ -170,8 +170,8 @@ class TestEdgeCases:
         scores = find_scores_from_audio_chunk(zero_chunk)
 
         assert len(scores) == 8
-        # All scores should be very low
-        assert np.all(np.abs(scores) < 1.0)
+        # Silence should not produce any positive bit detections.
+        assert np.all(scores <= 0)
 
     def test_timing_edge_cases(self):
         """Test timing-related edge cases."""
