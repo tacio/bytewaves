@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#07141a" />
+    <meta name="description" content="A private, serverless acoustic text modem." />
+    <link rel="icon" href="./favicon.svg" />
+    <title>ByteWaves</title>
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <a class="brand" href="./" aria-label="ByteWaves home">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+          <span>BYTEWAVES</span>
+        </a>
+        <span class="local-badge"><i></i> Runs locally</span>
+      </header>
+
+      <section class="hero">
+        <p class="eyebrow">ACOUSTIC DATA MODEM · PROTOCOL V2</p>
+        <h1>Send text.<br /><em>Through the air.</em></h1>
+        <p class="lede">Your devices already have everything they need. No accounts, no uploads, no server—just a speaker and a microphone.</p>
+      </section>
+
+      <section class="modem">
+        <div class="mode-tabs" role="tablist" aria-label="Modem mode">
+          <button id="send-tab" class="tab active" role="tab" aria-selected="true">Send</button>
+          <button id="receive-tab" class="tab" role="tab" aria-selected="false">Receive</button>
+        </div>
+
+        <div id="send-panel" class="panel" role="tabpanel" aria-labelledby="send-tab">
+          <label id="modem-title" for="message">Message</label>
+          <textarea id="message" rows="5" maxlength="235" placeholder="Type something worth transmitting…"></textarea>
+          <div class="field-meta"><span>UTF-8 text</span><span id="byte-count">0 / 235 bytes</span></div>
+          <button id="send-button" class="primary" disabled>
+            <span class="button-icon" aria-hidden="true">▶</span><span>Start broadcasting</span>
+          </button>
+        </div>
+
+        <div id="receive-panel" class="panel hidden" role="tabpanel" aria-labelledby="receive-tab">
+          <div class="receiver-visual" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+          <p class="receiver-title">Ready to listen</p>
+          <p class="receiver-copy">Microphone access is requested only when you start receiving.</p>
+          <button id="receive-button" class="primary"><span class="button-icon" aria-hidden="true">●</span><span>Start listening</span></button>
+          <article id="decoded-card" class="decoded-card hidden">
+            <span>Decoded message</span>
+            <p id="decoded-text"></p>
+          </article>
+        </div>
+
+        <div id="status" class="status" role="status" aria-live="polite"><i></i><span>Modem ready</span></div>
+      </section>
+
+      <footer><span>235 byte maximum</span><span>Reed–Solomon protected</span><span>Offline capable</span></footer>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

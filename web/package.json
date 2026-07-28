@@ -1,0 +1,26 @@
+{
+  "name": "bytewaves-web",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "wasm": "wasm-pack build ../crates/bytewaves-wasm --target web --out-dir ../../web/src/wasm --out-name bytewaves_wasm",
+    "build": "npm run wasm && tsc --noEmit && vite build",
+    "test": "vitest run src",
+    "test:e2e": "playwright test",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.1",
+    "@types/node": "^24.1.0",
+    "typescript": "^5.9.2",
+    "vite": "^7.0.6",
+    "vite-plugin-pwa": "1.2.0",
+    "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "brace-expansion": "5.0.8"
+  }
+}

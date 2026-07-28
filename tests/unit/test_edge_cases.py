@@ -22,11 +22,11 @@ class TestEdgeCases:
         """Test handling of empty text input."""
         result = text_to_sound("")
         assert isinstance(result, np.ndarray)
-        assert len(result) > 0  # Should still generate preamble
+        assert len(result) == 0
 
     def test_none_text_input(self):
         """Test handling of None input."""
-        with pytest.raises(AttributeError):
+        with pytest.raises(TypeError):
             text_to_sound(None)
 
     def test_very_large_text_input(self):
@@ -37,7 +37,7 @@ class TestEdgeCases:
         with patch("builtins.print") as mock_print:
             result = text_to_sound(large_text)
             assert len(result) == 0  # Should return empty for oversized data
-            assert any("too long" in str(call) for call in mock_print.call_args_list)
+            assert any("maximum is" in str(call) for call in mock_print.call_args_list)
 
     def test_special_characters_input(self):
         """Test handling of special characters and Unicode."""

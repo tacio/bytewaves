@@ -4,9 +4,10 @@ Guidance for AI agents working in this repo. Read `README.md` and `CLAUDE.md` fo
 
 ## Project shape
 
-- The entire implementation is one file: `bytewaves/modem.py` (~290 lines). `bytewaves/__init__.py` is empty. CLI entry point is `bytewaves.modem:main` (`uv run bytewaves`).
-- All protocol tuning constants (sample rate, durations, `FREQUENCIES`, `N_ECC_BYTES=16`, `MAX_BLOCK_SIZE=255`, `PREAMBLE=b'\x16\x16\x88\x88'`) are module-level globals at the top of `modem.py`. Any protocol change must keep encode and decode paths consistent.
-- Wire format: `PREAMBLE(4) | LENGTH(1 byte = n) | Reed-Solomon block of size n (data + CRC32(4) + ECC(16))`. Decode derives `n` from the length byte and must build `RSCodec(N_ECC_BYTES, nsize=n)` with the same `n` used on encode. Exceeding `MAX_BLOCK_SIZE=255` on either side breaks decoding silently.
+- `crates/bytewaves-core` is the protocol-v2 source of truth. `crates/bytewaves-wasm` and `crates/bytewaves-python` expose it to the browser and Python respectively.
+- `bytewaves/modem.py` owns only desktop audio I/O, CLI state, and deprecated 0.1 compatibility helpers. The CLI entry point remains `bytewaves.modem:main` (`uv run bytewaves`).
+- `web/` is a Vanilla TypeScript/Vite PWA. Capture runs in an AudioWorklet and decoding runs in a Web Worker.
+- Wire format: per-carrier training preamble, version, encoded length, header CRC8, then `RS(DATA | CRC32 | ECC16)`. Protocol timings and frequencies live in `bytewaves-core`; never duplicate new protocol behavior in Python or TypeScript.
 
 ## Commands
 
@@ -16,27 +17,29 @@ Use `uv` via the `justfile` (requires `just`; recipes auto-fall back to `pip` if
 uv sync --dev                  # install with dev deps (just install)
 just test                      # all tests
 just test-unit | test-int | test-perf   # one suite each (recipe names use these)
-just lint                      # flake8 + black --check + isort --check (bytewaves/ + tests/)
-just typecheck                 # mypy type checking (bytewaves/ + tests/)
-just format                    # black + isort (applies fixes)
-just ci                        # lint -> test-all (test-all already emits coverage)
+just lint                      # Ruff checks (bytewaves/ + tests/)
+just typecheck                 # ty type checking (bytewaves/)
+just format                    # Ruff formatting (applies fixes)
+just ci                        # Python + Rust + web verification
+just rust-check                # rustfmt + clippy + workspace tests
+just web-test | web-build      # frontend verification / production PWA
 ```
 
 ## Testing quirks
 
-- `pyproject.toml` `[tool.pytest.ini_options].addopts` already injects `--cov=bytewaves --cov-report=term-missing --strict-markers`. So **any** `pytest` run computes coverage; there is no separate "coverage" invocation needed. `just test-all` / `scripts/test.sh` additionally emit HTML (+ XML via `scripts/test.sh`). `just ci` deliberately does **not** re-run coverage after `test-all`.
+- Python tests cover the desktop binding and compatibility layer; Rust tests are authoritative for packet, ECC, modulation, and streaming decoding behavior. Web tests use Vitest.
 - Tests do **not** need real audio hardware: they import `bytewaves.modem` (which imports `sounddevice` at module load, but only playback/recording calls touch hardware) and exercise the codec logic with mocked audio I/O. Running the actual CLI (`uv run bytewaves`) does require speaker/mic.
-- No `conftest.py` exists anywhere; `tests/fixtures/{audio_samples,test_data}` are empty. Do not assume shared fixtures — each test file is self-contained.
+- No real audio hardware is required; all automated acoustic tests use generated PCM.
 - Tests are split into `tests/unit/`, `tests/integration/`, `tests/performance/`. Classes are `Test*`, functions `test_*` (enforced by pytest config).
 
 ## Style
 
-- Line length **127** across black, isort, and flake8 (not the default 88). flake8 ignores `E203`/`W503`. Run `just format` before `just lint`.
-- Python: `pyproject.toml` requires `>=3.11`; `.python-version` pins 3.13. The CI matrix in `.github/workflows/ci.yml` lists 3.8–3.11 and is stale (deps like `numpy>=2.3.3` need 3.11+) — trust `pyproject.toml` for local dev.
+- Python formatting and linting use Ruff; type checking uses `ty`. Run `just format` before `just lint`.
+- `pyproject.toml` requires Python 3.11 or newer; `.python-version` pins 3.13 and CI tests 3.11–3.13.
 
 ## Verification before finishing a task
 
-Run `just lint`, `just typecheck`, and `just test-unit` (or `just ci` for full). If you add a test, confirm it passes under `uv run pytest` and does not regress coverage.
+Run `just lint`, `just typecheck`, `just rust-check`, `just test-unit`, and `just web-test` (or `just ci` for full).
 
 
 <!-- headroom:rtk-instructions -->

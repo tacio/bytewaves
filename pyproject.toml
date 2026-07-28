@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling>=1.26"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.9,<2.0"]
+build-backend = "maturin"
 
 [project]
 name = "bytewaves"
-version = "0.1.0"
+version = "0.2.0"
 description = "An acoustic modem for transmitting data using sound waves, with Reed-Solomon error correction."
 authors = [
     { name = "Tacio" }
@@ -27,9 +27,7 @@ classifiers = [
 ]
 dependencies = [
     "numpy>=2.3.3",
-    "reedsolo>=1.7.0",
     "sounddevice>=0.5.2",
-    "padasip>=1.2.1",
 ]
 
 [project.urls]
@@ -65,11 +63,8 @@ exclude = ["pyproject.toml", "CVS", ".git", ".hg", ".DS_Store"]
 [project.scripts]
 bytewaves = "bytewaves.modem:main"
 
-[tool.hatch.build.targets.sdist]
-include = [
-    "/bytewaves",
-    "/README.md",
-]
-
-[tool.hatch.build.targets.wheel]
-packages = ["bytewaves"]
+[tool.maturin]
+manifest-path = "crates/bytewaves-python/Cargo.toml"
+module-name = "bytewaves._core"
+python-source = "."
+features = ["pyo3/extension-module"]

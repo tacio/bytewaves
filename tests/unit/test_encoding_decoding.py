@@ -37,7 +37,7 @@ class TestEncodingDecoding:
         """Test text_to_sound with empty string."""
         result = text_to_sound("")
         assert isinstance(result, np.ndarray)
-        assert len(result) > 0  # Should still have preamble and length
+        assert len(result) == 0
 
     def test_text_to_sound_unicode_text(self):
         """Test text_to_sound with Unicode characters."""
@@ -55,7 +55,7 @@ class TestEncodingDecoding:
         with patch("builtins.print") as mock_print:
             result = text_to_sound(large_text)
             assert len(result) == 0  # Should return empty array for oversized data
-            assert any("too long" in str(call) for call in mock_print.call_args_list)
+            assert any("maximum is" in str(call) for call in mock_print.call_args_list)
 
     def test_crc_calculation(self):
         """Test that CRC is correctly calculated and appended."""

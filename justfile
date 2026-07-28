@@ -23,6 +23,12 @@ help:
     @echo "  clean        - Clean up generated files"
     @echo "  coverage     - Generate HTML coverage report"
     @echo "  ci           - Run full CI pipeline locally (lint -> test-all)"
+    @echo "  rust-check   - Format, lint, and test the shared Rust core"
+    @echo "  wasm-build   - Generate browser bindings with wasm-pack"
+    @echo "  web-install  - Install locked frontend dependencies"
+    @echo "  web-test     - Run frontend unit tests"
+    @echo "  web-e2e      - Run Playwright browser tests"
+    @echo "  web-build    - Build the production PWA"
     @echo "  health-check - Verify import and compile"
 
 # Install the package with development dependencies
@@ -157,5 +163,26 @@ health-check:
     @echo "Health check completed"
 
 # Local CI simulation (lint -> test-all; test-all already emits coverage, so no separate coverage run)
-ci: lint test-all
+rust-check:
+    cargo fmt --all --check
+    cargo clippy --workspace --all-targets -- -D warnings
+    cargo test --workspace
+
+wasm-build:
+    wasm-pack build crates/bytewaves-wasm --target web --out-dir ../../web/src/wasm --out-name bytewaves_wasm
+
+web-install:
+    cd web && npm ci
+
+web-test: wasm-build
+    cd web && npm test
+    cd web && npm run typecheck
+
+web-e2e: web-build
+    cd web && npm run test:e2e
+
+web-build:
+    cd web && npm run build
+
+ci: lint typecheck rust-check test-all web-test web-build web-e2e
     @echo "CI pipeline completed successfully!"

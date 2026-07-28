@@ -100,7 +100,7 @@ class TestPreambleSync:
         """Test preamble length validation."""
         # Test with correct preamble length
         correct_preamble = PREAMBLE
-        assert len(correct_preamble) == 4  # Based on the code
+        assert len(correct_preamble) == 8
 
         # Test with wrong length
         wrong_preamble = PREAMBLE[:-1]  # Too short

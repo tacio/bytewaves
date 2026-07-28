@@ -8,3 +8,18 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Rust and web build output
+target/
+web/node_modules/
+web/dist/
+web/src/wasm/
+web/test-results/
+web/playwright-report/
+bytewaves/*.so
+
+# Test output
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/

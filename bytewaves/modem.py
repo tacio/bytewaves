@@ -1,57 +1,62 @@
-# acoustic_modem.py
-#
-# A Python script to encode and decode arbitrary data into sound waves.
-# It uses a simple multi-frequency shift keying (MFSK) approach, where each
-# bit of a byte corresponds to a specific frequency. If a bit is set, its
-# corresponding frequency is included in the sound played for that byte.
-#
-# It also includes Reed-Solomon error correction and intelligently combines
-# repeated transmissions to improve decoding accuracy in noisy environments.
-#
-# Dependencies:
-# pip install sounddevice numpy reedsolo padasip
+"""Desktop audio shell for the shared ByteWaves Rust modem core."""
 
 from __future__ import annotations
 
-import collections
+import json
 import queue
 import threading
-import zlib
 from typing import Any
 
 import numpy as np
 import sounddevice as sd
-from padasip.filters import FilterLMS
-from reedsolo import ReedSolomonError, RSCodec
 
-# --- Configuration ---
-SAMPLE_RATE = 44100
-BYTE_DURATION = 0.02
-PAUSE_DURATION = 0.02
+from ._core import MAX_PAYLOAD_BYTES
+from ._core import Decoder as _CoreDecoder
+from ._core import encode_text as _encode_text
+
+SAMPLE_RATE = 44_100
+BASE_FREQ = 1200.0
+BYTE_DURATION = 0.020
+PAUSE_DURATION = 0.020
 TRANSMISSION_PAUSE = 1.0
 MAX_BLOCK_SIZE = 255
 N_ECC_BYTES = 16
-PREAMBLE = b"\x16\x16\x88\x88"
+PREAMBLE = b"\x01\x02\x04\x08\x10\x20\x40\x80"
+FREQUENCIES = np.array([1200.0, 1600.0, 2100.0, 2750.0, 3600.0, 4700.0, 6100.0, 7800.0])
 
-# Frequencies for the 8 bits of a byte. Chosen to be distinct and audible.
-# Using a logarithmic scale to space them out perceptually.
-BASE_FREQ = 1000.0
-FREQUENCIES = np.logspace(np.log10(BASE_FREQ), np.log10(BASE_FREQ * 16), 8)
-
-# --- Global State ---
 sending_thread: threading.Thread | None = None
-stop_sending_flag = threading.Event()
 receiving_thread: threading.Thread | None = None
+stop_sending_flag = threading.Event()
 stop_receiving_flag = threading.Event()
 
 
-# --- Adaptive Equalizer ---
+class _LmsFilter:
+    """Small compatibility LMS filter; protocol-v2 decoding lives in Rust."""
+
+    def __init__(self, length: int, mu: float) -> None:
+        self.mu = mu
+        self.w = np.zeros(length)
+
+    def run(self, desired: np.ndarray, received: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        output = self.predict(received)
+        error = desired[: len(output)] - output
+        return output, error, self.w
+
+    def predict(self, signal: np.ndarray) -> np.ndarray:
+        if not len(signal):
+            return np.array([], dtype=float)
+        kernel = self.w.copy()
+        if not np.any(kernel):
+            kernel[0] = 1.0
+        return np.convolve(signal, kernel, mode="full")[: len(signal)]
+
+
 class AdaptiveEqualizer:
-    """A wrapper for an adaptive filter to compensate for channel distortion."""
+    """Deprecated compatibility wrapper retained for callers of the 0.1 API."""
 
     def __init__(self, filter_len: int = 20, mu: float = 0.01) -> None:
         self.filter_len = filter_len
-        self.filt = FilterLMS(n=filter_len, mu=mu, w="zeros")
+        self.filt = _LmsFilter(filter_len, mu)
 
     def train(self, received_signal: np.ndarray, desired_signal: np.ndarray) -> None:
         if len(received_signal) < len(desired_signal):
@@ -61,233 +66,121 @@ class AdaptiveEqualizer:
             print("Warning: Signal too short for training the equalizer.")
             return
         self.filt.run(desired_signal, received_signal)
-        print(f"Equalizer trained. Final weights: {self.filt.w}")
 
     def apply(self, signal: np.ndarray) -> np.ndarray:
         return self.filt.predict(signal)
 
 
-def _generate_sound_from_bytes(byte_sequence: bytes | list[int], include_pauses: bool = True) -> np.ndarray:
-    """Generates a sound wave from a sequence of bytes."""
-    if not byte_sequence:
+class Decoder:
+    """Python-friendly streaming decoder returning dictionaries."""
+
+    def __init__(self, sample_rate: int = SAMPLE_RATE) -> None:
+        self._decoder = _CoreDecoder(sample_rate)
+
+    def reset(self) -> None:
+        self._decoder.reset()
+
+    def push_samples(self, samples: np.ndarray) -> list[dict[str, Any]]:
+        contiguous = np.ascontiguousarray(samples, dtype=np.float32).reshape(-1)
+        return json.loads(self._decoder.push_samples_json(contiguous))
+
+
+def text_to_sound(text: str, sample_rate: int = SAMPLE_RATE) -> np.ndarray:
+    """Encode UTF-8 text as one protocol-v2 frame."""
+    try:
+        return np.asarray(_encode_text(text, sample_rate), dtype=np.float32)
+    except ValueError as error:
+        print(f"Error: {error}")
         return np.array([], dtype=np.float32)
 
-    full_wave: list[np.ndarray] = []
-    t_byte = np.linspace(0, BYTE_DURATION, int(SAMPLE_RATE * BYTE_DURATION), endpoint=False)
-    silence_byte = np.zeros(int(SAMPLE_RATE * PAUSE_DURATION))
 
-    for byte_val in byte_sequence:
-        wave = np.zeros_like(t_byte)
-        for i in range(8):
-            if (byte_val >> i) & 1:
-                wave += np.sin(2 * np.pi * FREQUENCIES[i] * t_byte)
-        if np.max(np.abs(wave)) > 0:
-            wave /= np.max(np.abs(wave))
-        full_wave.append(wave)
+def _generate_sound_from_bytes(byte_sequence: bytes | list[int], include_pauses: bool = True) -> np.ndarray:
+    """Legacy 0.1 modulation helper retained for API compatibility."""
+    if not byte_sequence:
+        return np.array([], dtype=np.float32)
+    tone_samples = round(SAMPLE_RATE * BYTE_DURATION)
+    guard_samples = round(SAMPLE_RATE * PAUSE_DURATION)
+    time = np.arange(tone_samples) / SAMPLE_RATE
+    parts: list[np.ndarray] = []
+    for value in byte_sequence:
+        wave = np.zeros(tone_samples)
+        active = max(value.bit_count(), 1)
+        for bit, frequency in enumerate(FREQUENCIES):
+            if value & (1 << bit):
+                wave += np.sin(2 * np.pi * frequency * time) / active
+        parts.append(wave)
         if include_pauses:
-            full_wave.append(silence_byte)
-
-    return np.concatenate(full_wave).astype(np.float32)
-
-
-# --- Encoding and Transmission ---
+            parts.append(np.zeros(guard_samples))
+    return np.concatenate(parts).astype(np.float32)
 
 
-def text_to_sound(text: str) -> np.ndarray:
-    """Converts a string to a sound wave with a preamble, length, CRC, and error correction."""
-    print("Encoding text to sound...")
-    data_bytes = text.encode("utf-8")
-    crc = zlib.crc32(data_bytes)
-    data_with_crc = data_bytes + crc.to_bytes(4, "big")
-    n = len(data_with_crc) + N_ECC_BYTES
+def find_scores_from_audio_chunk(chunk: np.ndarray) -> np.ndarray:
+    """Legacy carrier scoring helper; streaming receive uses ``Decoder``."""
+    samples = np.nan_to_num(np.asarray(chunk, dtype=float).reshape(-1), nan=0.0, posinf=0.0, neginf=0.0)
+    if len(samples) < 2:
+        return np.zeros(8)
+    spectrum = np.abs(np.fft.rfft(samples))
+    bins = np.fft.rfftfreq(len(samples), 1 / SAMPLE_RATE)
+    noise_floor = max(float(np.mean(spectrum)), 1e-9)
+    return np.array([float(spectrum[np.argmin(np.abs(bins - frequency))] / noise_floor - 10.0) for frequency in FREQUENCIES])
 
-    if n > MAX_BLOCK_SIZE:
-        max_data_len = MAX_BLOCK_SIZE - N_ECC_BYTES - 4
-        print(f"Error: Data is too long ({len(data_bytes)} bytes). Maximum is {max_data_len} bytes.")
-        return np.array([])
 
-    try:
-        rs_codec = RSCodec(N_ECC_BYTES, nsize=n)
-        encoded_message = rs_codec.encode(data_with_crc)
-    except Exception as e:
-        print(f"Error during Reed-Solomon encoding: {e}")
-        return np.array([])
-
-    length_byte = bytes([n])
-    packet = PREAMBLE + length_byte + encoded_message
-    print(f"Full packet size: {len(packet)} bytes (Preamble+Length+Data+CRC+ECC)")
-    return _generate_sound_from_bytes(packet)
+def scores_to_byte(scores: np.ndarray) -> int:
+    return sum(1 << bit for bit, score in enumerate(scores) if score > 0)
 
 
 def send_loop(wave: np.ndarray) -> None:
     if wave.size == 0:
-        print("Cannot send empty wave.")
+        print("Cannot send an empty message.")
         return
     print("\nBroadcasting sound... Press Enter to stop.")
     while not stop_sending_flag.is_set():
         sd.play(wave, SAMPLE_RATE)
         sd.wait()
-        stop_sending_flag.wait(TRANSMISSION_PAUSE)
     print("Broadcast stopped.")
 
 
 def start_sending() -> None:
     global sending_thread
+    text = input(f"Enter text to send (maximum {MAX_PAYLOAD_BYTES} UTF-8 bytes): ")
+    wave = text_to_sound(text)
+    if wave.size == 0:
+        return
+    stop_sending_flag.clear()
+    sending_thread = threading.Thread(target=send_loop, args=(wave,))
+    sending_thread.start()
     try:
-        text = input("Enter text to send: ")
-        if not text:
-            print("Input is empty.")
-            return
-        wave = text_to_sound(text)
-        stop_sending_flag.clear()
-        sending_thread = threading.Thread(target=send_loop, args=(wave,))
-        sending_thread.start()
         input()
+    finally:
         stop_sending_flag.set()
         sending_thread.join()
-    except KeyboardInterrupt:
-        print("\nStopping sender.")
-        if sending_thread:
-            stop_sending_flag.set()
-            sending_thread.join()
-
-
-# --- Decoding and Receiving ---
-
-
-def find_scores_from_audio_chunk(chunk: np.ndarray) -> np.ndarray:
-    chunk = np.asarray(chunk).reshape(-1)
-    if len(chunk) < 2:
-        return np.zeros(8)
-    chunk = np.nan_to_num(chunk, nan=0.0, posinf=0.0, neginf=0.0)
-
-    fft_result = np.fft.fft(chunk)
-    fft_freqs = np.fft.fftfreq(len(chunk), 1 / SAMPLE_RATE)
-    magnitudes = np.abs(fft_result)
-    positive_mask = fft_freqs > 0
-    fft_freqs = fft_freqs[positive_mask]
-    magnitudes = magnitudes[positive_mask]
-    scores = np.zeros(8)
-    if len(magnitudes) == 0:
-        return scores
-    noise_floor = float(np.mean(magnitudes))
-    if noise_floor < 1e-9:
-        return scores
-    for i, freq in enumerate(FREQUENCIES):
-        freq_index = int(np.argmin(np.abs(fft_freqs - freq)))
-        window = 5
-        start = max(0, freq_index - window)
-        end = min(len(magnitudes), freq_index + window + 1)
-        peak_magnitude = float(np.max(magnitudes[start:end]))
-        threshold_factor = 10
-        score = (peak_magnitude / noise_floor) - threshold_factor
-        scores[i] = score
-    return scores
-
-
-def scores_to_byte(scores: np.ndarray) -> int:
-    byte_val = 0
-    for i, score in enumerate(scores):
-        if score > 0:
-            byte_val |= 1 << i
-    return byte_val
-
-
-def attempt_decode(accumulated_scores: list[np.ndarray], n: int, transmissions_count: int) -> bool:
-    print(f"\nAttempting decode on {n}-byte packet after {transmissions_count} transmission(s)...")
-    best_guess_bytes = bytearray(scores_to_byte(scores) for scores in accumulated_scores)
-    try:
-        rs_codec = RSCodec(N_ECC_BYTES, nsize=n)
-        decoded_message = rs_codec.decode(best_guess_bytes)[0]
-        received_crc_bytes = decoded_message[-4:]
-        received_data = decoded_message[:-4]
-        received_crc = int.from_bytes(received_crc_bytes, "big")
-        expected_crc = zlib.crc32(received_data)
-        if received_crc != expected_crc:
-            print("--- DECODING FAILED: CRC MISMATCH ---")
-            return False
-        text = received_data.decode("utf-8", errors="ignore")
-        print(f"\n--- SUCCESS! ---\nDecoded Text: {text}\n------------------\n")
-        return True
-    except ReedSolomonError:
-        print("--- DECODING FAILED: REED-SOLOMON ---")
-        return False
-    except Exception as e:
-        print(f"\nAn error occurred during final decoding: {e}")
-        return False
 
 
 def receive_loop() -> None:
     print("\nListening for data... Press Enter to stop.")
-    chunk_size = int(SAMPLE_RATE * (BYTE_DURATION + PAUSE_DURATION))
-    q: queue.Queue[np.ndarray] = queue.Queue()
+    audio_queue: queue.Queue[np.ndarray] = queue.Queue()
+    decoder = Decoder(SAMPLE_RATE)
 
-    def audio_callback(indata: np.ndarray, frames: int, time_val: float, status: Any) -> None:
+    def audio_callback(indata: np.ndarray, frames: int, time_val: Any, status: Any) -> None:
+        del frames, time_val
         if status:
             print(status)
-        q.put(indata.copy())
+        audio_queue.put(indata[:, 0].copy())
 
-    state = "HUNTING"
-    preamble_byte_buffer: collections.deque[int] = collections.deque(maxlen=len(PREAMBLE))
-    preamble_audio_buffer: collections.deque[np.ndarray] = collections.deque(maxlen=len(PREAMBLE))
-    byte_idx = 0
-    transmissions_count = 0
-
-    equalizer = AdaptiveEqualizer(filter_len=40)
-    ideal_preamble_signal = _generate_sound_from_bytes(PREAMBLE, include_pauses=False)
-
-    with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, callback=audio_callback, blocksize=chunk_size):
+    with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32", callback=audio_callback, blocksize=2048):
         while not stop_receiving_flag.is_set():
             try:
-                chunk = q.get(timeout=0.5)
-                raw_audio_signal = chunk[:, 0]
-                data_chunk = raw_audio_signal[: int(SAMPLE_RATE * BYTE_DURATION)]
-
-                if np.sum(raw_audio_signal**2) < 0.01:
-                    continue
-
-                if state == "HUNTING":
-                    scores = find_scores_from_audio_chunk(data_chunk)
-                    detected_byte = scores_to_byte(scores)
-                    preamble_byte_buffer.append(detected_byte)
-                    preamble_audio_buffer.append(data_chunk)
-                    if bytes(preamble_byte_buffer) == PREAMBLE:
-                        print("Preamble detected! Training equalizer...")
-                        received_preamble_signal = np.concatenate(list(preamble_audio_buffer))
-                        equalizer.train(received_preamble_signal, ideal_preamble_signal)
-                        state = "AWAITING_LENGTH"
-                        print("Equalizer trained. Awaiting packet length...")
-
-                elif state in ["AWAITING_LENGTH", "COLLECTING"]:
-                    equalized_chunk = equalizer.apply(data_chunk)
-                    scores = find_scores_from_audio_chunk(equalized_chunk)
-                    detected_byte = scores_to_byte(scores)
-
-                    if state == "AWAITING_LENGTH":
-                        expected_packet_size_n = detected_byte
-                        if N_ECC_BYTES + 4 < expected_packet_size_n <= MAX_BLOCK_SIZE:
-                            print(f"Packet length received: {expected_packet_size_n} bytes.")
-                            accumulated_scores = [np.zeros(8) for _ in range(expected_packet_size_n)]
-                            byte_idx, transmissions_count = 0, 0
-                            state = "COLLECTING"
-                        else:
-                            print(f"Invalid length ({expected_packet_size_n}). Returning to hunt.")
-                            state = "HUNTING"
-
-                    elif state == "COLLECTING":
-                        accumulated_scores[byte_idx] += scores
-                        byte_idx += 1
-                        if byte_idx >= expected_packet_size_n:
-                            transmissions_count += 1
-                            if attempt_decode(accumulated_scores, expected_packet_size_n, transmissions_count):
-                                state = "HUNTING"
-                            else:
-                                byte_idx = 0
+                samples = audio_queue.get(timeout=0.25)
             except queue.Empty:
                 continue
-            except Exception as e:
-                print(f"An error in the receive loop: {e}")
-                state = "HUNTING"
+            for event in decoder.push_samples(samples):
+                event_type = event["type"]
+                if event_type == "synchronized":
+                    print("Signal synchronized; receiving frame...")
+                elif event_type == "decodeFailed":
+                    print(f"Decode failed: {event['reason']}; listening for the next repetition.")
+                elif event_type == "messageDecoded":
+                    print(f"\n--- SUCCESS! ---\nDecoded Text: {event['text']}\n------------------\n")
     print("Receiver stopped.")
 
 
@@ -296,14 +189,15 @@ def start_receiving() -> None:
     stop_receiving_flag.clear()
     receiving_thread = threading.Thread(target=receive_loop)
     receiving_thread.start()
-    input()
-    stop_receiving_flag.set()
-    receiving_thread.join()
+    try:
+        input()
+    finally:
+        stop_receiving_flag.set()
+        receiving_thread.join()
 
 
-# --- Main Application Logic ---
 def main() -> None:
-    print("--- Acoustic Data Modem ---")
+    print("--- ByteWaves Acoustic Data Modem (protocol v2) ---")
     while True:
         choice = input("\nChoose an option:\n1. Send text\n2. Receive data\n3. Exit\n> ").strip()
         if choice == "1":
@@ -314,7 +208,6 @@ def main() -> None:
             break
         else:
             print("Invalid choice. Please enter 1, 2, or 3.")
-    print("Goodbye!")
 
 
 if __name__ == "__main__":
